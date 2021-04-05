@@ -17,11 +17,7 @@
 
 package net.countercraft.movecraft.async.rotation;
 
-import com.palmergames.bukkit.towny.object.Town;
-import com.palmergames.bukkit.towny.object.TownBlock;
-import com.palmergames.bukkit.towny.object.TownyWorld;
-import com.sk89q.worldguard.LocalPlayer;
-import com.sk89q.worldguard.protection.ApplicableRegionSet;
+import net.countercraft.movecraft.CruiseDirection;
 import net.countercraft.movecraft.Movecraft;
 import net.countercraft.movecraft.MovecraftLocation;
 import net.countercraft.movecraft.Rotation;
@@ -59,11 +55,6 @@ public class RotationTask extends AsyncTask {
     private Set<UpdateCommand> updates = new HashSet<>();
     //private int[][][] hitbox;
     //private Integer minX, minZ;
-
-    private boolean townyEnabled;
-    private Set<TownBlock> townBlockSet;
-    private TownyWorld townyWorld;
-    private TownyWorldHeightLimits townyWorldHeightLimits;
 
     private final BitmapHitBox oldHitBox;
     private final BitmapHitBox newHitBox;
@@ -127,20 +118,7 @@ public class RotationTask extends AsyncTask {
                 break;
             }
 
-            // See if they are permitted to build in the area, if WorldGuard integration is turned on
-            Location plugLoc = newLocation.toBukkit(w);
-            if (craftPilot != null &&
-                    Movecraft.getInstance().getWorldGuardPlugin() != null &&
-                    Settings.WorldGuardBlockMoveOnBuildPerm &&
-                    !Movecraft.getInstance().getWorldGuardPlugin().canBuild(craftPilot, plugLoc)) {
-                failed = true;
-                failMessage = String.format(I18nSupport.getInternationalisedString("Rotation - Player is not permitted to build in this WorldGuard region") + " @ %d,%d,%d", newLocation.getX(), newLocation.getY(), newLocation.getZ());
-                break;
-            }
 
-            //TODO: ADD TOWNY
-
-            //isTownyBlock(plugLoc,craftPilot);
             if (!withinWorldBorder(craft.getW(), newLocation)) {
                 failMessage = I18nSupport.getInternationalisedString("Rotation - Failed Craft cannot pass world border") + String.format(" @ %d,%d,%d", newLocation.getX(), newLocation.getY(), newLocation.getZ());
                 failed = true;
@@ -199,7 +177,7 @@ public class RotationTask extends AsyncTask {
                     (oldHitBox.getMaxY() + oldHitBox.getMinY())/2.0,
                     (oldHitBox.getMaxZ() + oldHitBox.getMinZ())/2.0);
             for(Entity entity : craft.getW().getNearbyEntities(midpoint, oldHitBox.getXLength()/2.0 + 1, oldHitBox.getYLength()/2.0 + 2, oldHitBox.getZLength()/2.0 + 1)){
-                if ((entity.getType() == EntityType.PLAYER && !craft.getSinking()) || !craft.getType().getOnlyMovePlayers()) {
+                if (((entity.getType() == EntityType.PLAYER || entity.getType() == EntityType.PRIMED_TNT) && !craft.getSinking()) || !craft.getType().getOnlyMovePlayers()) {
                     // Player is onboard this craft
 
                     Location adjustedPLoc = entity.getLocation().subtract(tOP);
@@ -216,39 +194,39 @@ public class RotationTask extends AsyncTask {
             if (rotation == Rotation.ANTICLOCKWISE) {
                 // ship faces west
                 switch (getCraft().getCruiseDirection()) {
-                    case 0x5:
-                        getCraft().setCruiseDirection((byte) 0x2);
+                    case WEST:
+                        getCraft().setCruiseDirection(CruiseDirection.SOUTH);
                         break;
                     // ship faces east
-                    case 0x4:
-                        getCraft().setCruiseDirection((byte) 0x3);
+                    case EAST:
+                        getCraft().setCruiseDirection(CruiseDirection.NORTH);
                         break;
                     // ship faces north
-                    case 0x2:
-                        getCraft().setCruiseDirection((byte) 0x4);
+                    case SOUTH:
+                        getCraft().setCruiseDirection(CruiseDirection.EAST);
                         break;
                     // ship faces south
-                    case 0x3:
-                        getCraft().setCruiseDirection((byte) 0x5);
+                    case NORTH:
+                        getCraft().setCruiseDirection(CruiseDirection.WEST);
                         break;
                 }
             } else if (rotation == Rotation.CLOCKWISE) {
                 // ship faces west
                 switch (getCraft().getCruiseDirection()) {
-                    case 0x5:
-                        getCraft().setCruiseDirection((byte) 0x3);
+                    case WEST:
+                        getCraft().setCruiseDirection(CruiseDirection.NORTH);
                         break;
                     // ship faces east
-                    case 0x4:
-                        getCraft().setCruiseDirection((byte) 0x2);
+                    case EAST:
+                        getCraft().setCruiseDirection(CruiseDirection.SOUTH);
                         break;
                     // ship faces north
-                    case 0x2:
-                        getCraft().setCruiseDirection((byte) 0x5);
+                    case SOUTH:
+                        getCraft().setCruiseDirection(CruiseDirection.WEST);
                         break;
                     // ship faces south
-                    case 0x3:
-                        getCraft().setCruiseDirection((byte) 0x4);
+                    case NORTH:
+                        getCraft().setCruiseDirection(CruiseDirection.EAST);
                         break;
                 }
             }
@@ -284,7 +262,8 @@ public class RotationTask extends AsyncTask {
                         faceMessage += I18nSupport.getInternationalisedString("Contact/Subcraft Rotate - North");
                 }
             }
-            getCraft().getNotificationPlayer().sendMessage(faceMessage);
+            if(getCraft().getNotificationPlayer() != null)
+                getCraft().getNotificationPlayer().sendMessage(faceMessage);
 
             craftsInWorld = CraftManager.getInstance().getCraftsInWorld(getCraft().getW());
             for (Craft craft : craftsInWorld) {
@@ -337,58 +316,6 @@ public class RotationTask extends AsyncTask {
 
     public boolean getIsSubCraft() {
         return isSubCraft;
-    }
-
-    private void isTownyBlock(Location plugLoc, Player craftPilot){
-        //towny
-        Player p = craftPilot == null ? getCraft().getNotificationPlayer() : craftPilot;
-        if (p == null) {
-            return;
-        }
-        if (Movecraft.getInstance().getWorldGuardPlugin() != null && Movecraft.getInstance().getWGCustomFlagsPlugin() != null && Settings.WGCustomFlagsUsePilotFlag) {
-            LocalPlayer lp = Movecraft.getInstance().getWorldGuardPlugin().wrapPlayer(p);
-            WGCustomFlagsUtils WGCFU = new WGCustomFlagsUtils();
-            if (!WGCFU.validateFlag(plugLoc, Movecraft.FLAG_ROTATE, lp)) {
-                failed = true;
-                failMessage = String.format(I18nSupport.getInternationalisedString("WGCustomFlags - Rotation Failed") + " @ %d,%d,%d", plugLoc.getX(), plugLoc.getY(), plugLoc.getZ());
-                return;
-            }
-        }
-
-        if (!townyEnabled) {
-            return;
-        }
-        TownBlock townBlock = TownyUtils.getTownBlock(plugLoc);
-        if (townBlock == null || townBlockSet.contains(townBlock)) {
-            return;
-        }
-        if (TownyUtils.validateCraftMoveEvent(p, plugLoc, townyWorld)) {
-            townBlockSet.add(townBlock);
-            return;
-        }
-        Town town = TownyUtils.getTown(townBlock);
-        if (town == null) {
-            return;
-        }
-        Location locSpawn = TownyUtils.getTownSpawn(townBlock);
-        if (locSpawn == null || !townyWorldHeightLimits.validate(newHitBox.getMaxY(), locSpawn.getBlockY())) {
-            failed = true;
-        }
-        if (failed) {
-            if (Movecraft.getInstance().getWorldGuardPlugin() != null && Movecraft.getInstance().getWGCustomFlagsPlugin() != null && Settings.WGCustomFlagsUsePilotFlag) {
-                LocalPlayer lp = Movecraft.getInstance().getWorldGuardPlugin().wrapPlayer(p);
-                ApplicableRegionSet regions = Movecraft.getInstance().getWorldGuardPlugin().getRegionManager(plugLoc.getWorld()).getApplicableRegions(plugLoc);
-                if (regions.size() != 0) {
-                    WGCustomFlagsUtils WGCFU = new WGCustomFlagsUtils();
-                    if (WGCFU.validateFlag(plugLoc, Movecraft.FLAG_ROTATE, lp)) {
-                        failed = false;
-                    }
-                }
-            }
-        }
-        if (failed) {
-            failMessage = String.format(I18nSupport.getInternationalisedString("Towny - Rotation Failed") + " %s @ %d,%d,%d", town.getName(), plugLoc.getX(), plugLoc.getY(), plugLoc.getZ());
-        }
     }
 
 

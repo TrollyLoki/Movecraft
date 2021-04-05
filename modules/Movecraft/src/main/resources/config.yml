@@ -5,13 +5,12 @@ SinkCheckTicks: 100
 TracerRateTicks: 5
 TracerMinDistance: 60 # Minimum distance for tracers to appear
 PilotTool: 280
-WorldGuardBlockMoveOnBuildPerm: true
-WorldGuardBlockSinkOnPVPPerm: true
 ManOverboardTimeout: 30
 ManOverboardDistance: 1000 # maximum distance from a craft that you can manoverboard to it
 FireballLifespan: 6
 ProtectPilotedCrafts: true
 DisableSpillProtection: false
+DisableIceForm: true
 RequireCreatePerm: false # require users to have the movecract.<CraftTypeName>.create permission in order to place command signs
 TNTContactExplosives: true
 DisableCrates: true
@@ -25,12 +24,7 @@ ExtraFadeTimePerBlock: #List of blocks that will take longer time to fade
   DROPPER: 600
   FURNACE: 600
 BlockQueueChunkSize: 200000
-RepairTicksPerBlock: 10
-RepairMoneyPerBlock: 10
-RepairMaxPercent: 50
-AllowCrewSigns: true
 MaxRemoteSigns: -1 # Maximum number of remote signs that can be triggered at once.  Setting to -1 allows unlimited.
-SetHomeToCrewSign: false
 CraftsUseNetherPortals: false
 DisableShadowBlocks: # These blocks will not cast shadows. This improves the speed of moving ships of these blocks immensely.
   - 26
@@ -51,21 +45,9 @@ DisableShadowBlocks: # These blocks will not cast shadows. This improves the spe
   - 165
   - 173
   - 206
-WGCustomFlagsUsePilotFlag: false
-WGCustomFlagsUseMoveFlag: false
-WGCustomFlagsUseRotateFlag: false
-WGCustomFlagsUseSinkFlag: false
 DurabilityOverride:
   121: 80
   206: 80
-TownyBlockMoveOnSwitchPerm: false
-TownyBlockSinkOnNoPVP: false
-TownyWorldHeightLimits:
-  world:
-    worldMin: -1
-    worldMax: -1
-    aboveTownSpawn: 96
-    underTownSpawn: 255
 ForbiddenRemoteSigns: # These strings will be ignored when searching for signs to trigger from a remote sign
   - "Mounted"
   - "Denied"

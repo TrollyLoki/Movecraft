@@ -17,8 +17,6 @@
 
 package net.countercraft.movecraft.craft;
 
-import net.countercraft.movecraft.config.Settings;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.World;
@@ -111,7 +109,11 @@ final public class CraftType {
     private final int teleportationCooldown;
     private final int gravityDropDistance;
     private final int gravityInclineDistance;
+    private final int gearShifts;
+    private final boolean gearShiftsAffectTickCooldown;
+    private final boolean gearShiftsAffectDirectMovement;
     private final Sound collisionSound;
+    private final boolean gearShiftsAffectCruiseSkipBlocks;
 
     @SuppressWarnings("unchecked")
     public CraftType(File f) {
@@ -121,7 +123,8 @@ final public class CraftType {
             Yaml yaml = new Yaml();
             data = (Map) yaml.load(input);
             input.close();
-        } catch (IOException e) {
+        }
+        catch (IOException e) {
             throw new TypeNotFoundException("No file found at path " + f.getAbsolutePath());
         }
 
@@ -211,13 +214,6 @@ final public class CraftType {
                 perWorldVertCruiseTickCooldown.put(world, (int) Math.round((1.0 + worldVertCruiseSkipBlocks) * 20.0 / vertCruiseSpeed));
             }
         });
-        if(Settings.Debug) {
-            Bukkit.getLogger().info("Craft: " + craftName);
-            Bukkit.getLogger().info("CruiseSpeed: " + cruiseSpeed);
-            Bukkit.getLogger().info("Cooldown: " + cruiseTickCooldown);
-            Bukkit.getLogger().info("VertCruiseSpeed: " + vertCruiseSpeed);
-            Bukkit.getLogger().info("VertCooldown: " + vertCruiseTickCooldown);
-        }
 
         int value = Math.min(integerFromObject(data.getOrDefault("maxHeightLimit", 254)), 255);
         if (value <= minHeightLimit) {
@@ -343,6 +339,10 @@ final public class CraftType {
         List<String> disabledWorlds = (List<String>) data.getOrDefault("disableTeleportToWorlds", new ArrayList<>());
         disableTeleportToWorlds.addAll(disabledWorlds);
         teleportationCooldown = integerFromObject(data.getOrDefault("teleportationCooldown", 0));
+        gearShifts = Math.max(integerFromObject(data.getOrDefault("gearShifts", 1)), 1);
+        gearShiftsAffectTickCooldown = (boolean) data.getOrDefault("gearShiftsAffectTickCooldown", true);
+        gearShiftsAffectDirectMovement = (boolean) data.getOrDefault("gearShiftsAffectDirectMovement", false);
+        gearShiftsAffectCruiseSkipBlocks = (boolean) data.getOrDefault("gearShiftsAffectCruiseSkipBlocks", false);
     }
 
     private int integerFromObject(Object obj) {
@@ -830,7 +830,23 @@ final public class CraftType {
         return teleportationCooldown;
     }
 
-    private class TypeNotFoundException extends RuntimeException {
+    public int getGearShifts() {
+        return gearShifts;
+    }
+
+    public boolean getGearShiftsAffectTickCooldown() {
+        return gearShiftsAffectTickCooldown;
+    }
+
+    public boolean getGearShiftsAffectDirectMovement() {
+        return gearShiftsAffectDirectMovement;
+    }
+
+    public boolean getGearShiftsAffectCruiseSkipBlocks() {
+        return gearShiftsAffectCruiseSkipBlocks;
+    }
+
+    public class TypeNotFoundException extends RuntimeException {
         public TypeNotFoundException(String s) {
             super(s);
         }

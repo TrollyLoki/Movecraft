@@ -17,6 +17,7 @@
 
 package net.countercraft.movecraft.craft;
 
+import net.countercraft.movecraft.CruiseDirection;
 import net.countercraft.movecraft.MovecraftLocation;
 import net.countercraft.movecraft.Rotation;
 import net.countercraft.movecraft.config.Settings;
@@ -41,8 +42,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-
-
 public abstract class Craft {
     @NotNull protected final CraftType type;
     @NotNull protected BitmapHitBox hitBox;
@@ -55,13 +54,14 @@ public abstract class Craft {
     private boolean cruising;
     private boolean sinking;
     private boolean disabled;
-    private byte cruiseDirection;
+    private CruiseDirection cruiseDirection;
     private long lastCruiseUpdate;
     private long lastBlockCheck;
     private long lastRotateTime=0;
     private final long origPilotTime;
     private long lastTeleportTime;
     private int lastDX, lastDY, lastDZ;
+    private int currentGear = 1;
     private double burningFuel;
     private boolean pilotLocked;
     private double pilotLockedX;
@@ -72,7 +72,6 @@ public abstract class Craft {
     private float meanCruiseTime;
     private int numMoves;
     @NotNull private final Map<Location, Pair<Material, Byte>> phaseBlocks = new HashMap<>();
-    @NotNull private final HashMap<UUID, Location> crewSigns = new HashMap<>();
     @NotNull private String name = "";
 
     public Craft(@NotNull CraftType type, @NotNull World world) {
@@ -191,11 +190,11 @@ public abstract class Craft {
         this.disabled = disabled;
     }
 
-    public byte getCruiseDirection() {
+    public CruiseDirection getCruiseDirection() {
         return cruiseDirection;
     }
 
-    public void setCruiseDirection(byte cruiseDirection) {
+    public void setCruiseDirection(CruiseDirection cruiseDirection) {
         this.cruiseDirection = cruiseDirection;
     }
 
@@ -322,11 +321,11 @@ public abstract class Craft {
 
         int chestPenalty = (int)((materials.get(Material.CHEST) + materials.get(Material.TRAPPED_CHEST)) * type.getChestPenalty());
         if(!cruising)
-            return type.getTickCooldown(w) + chestPenalty;
+            return (type.getTickCooldown(w) + chestPenalty) * (type.getGearShiftsAffectTickCooldown() ? currentGear : 1);
 
         // Ascent or Descent
-        if(cruiseDirection == 0x42 || cruiseDirection == 0x43) {
-            return type.getVertCruiseTickCooldown(w) + chestPenalty;
+        if(cruiseDirection == CruiseDirection.UP || cruiseDirection == CruiseDirection.DOWN) {
+            return (type.getVertCruiseTickCooldown(w) + chestPenalty) * (type.getGearShiftsAffectTickCooldown() ? currentGear : 1);
         }
 
         // Dynamic Fly Block Speed
@@ -334,13 +333,13 @@ public abstract class Craft {
             Material flyBlockMaterial = Material.getMaterial(type.getDynamicFlyBlock());
             double count = materials.get(flyBlockMaterial);
             double woolRatio = count / hitBox.size();
-            return Math.max((int)Math.round((20.0 * (type.getCruiseSkipBlocks(w) + 1)) / ((type.getDynamicFlyBlockSpeedFactor() * 1.5) * (woolRatio - .5) + (20.0 / type.getCruiseTickCooldown(w)) + 1)), 1);
+            return Math.max((int)Math.round((20.0 * (type.getCruiseSkipBlocks(w) + 1)) / ((type.getDynamicFlyBlockSpeedFactor() * 1.5) * (woolRatio - .5) + (20.0 / (type.getCruiseTickCooldown(w) )) + 1)) * (type.getGearShiftsAffectTickCooldown() ? currentGear : 1), 1);
         }
 
         if(type.getDynamicLagSpeedFactor() == 0.0 || type.getDynamicLagPowerFactor() == 0.0 || Math.abs(type.getDynamicLagPowerFactor()) > 1.0)
-            return type.getCruiseTickCooldown(w) + chestPenalty;
+            return (type.getCruiseTickCooldown(w) + chestPenalty) * (type.getGearShiftsAffectTickCooldown() ? currentGear : 1);
         if(numMoves == 0)
-            return (int) Math.round(20.0 * ((type.getCruiseSkipBlocks(w) + 1.0) / type.getDynamicLagMinSpeed()));
+            return (int) Math.round(20.0 * ((type.getCruiseSkipBlocks(w) + 1.0) / type.getDynamicLagMinSpeed()) * (type.getGearShiftsAffectTickCooldown() ? currentGear : 1));
 
         if(Settings.Debug) {
             Bukkit.getLogger().info("Skip: " + type.getCruiseSkipBlocks(w));
@@ -355,7 +354,7 @@ public abstract class Craft {
         double speed = 20.0 * (type.getCruiseSkipBlocks(w) + 1.0) / (float)type.getCruiseTickCooldown(w);
         speed -= type.getDynamicLagSpeedFactor() * Math.pow(getMeanCruiseTime() * 1000.0, type.getDynamicLagPowerFactor());
         speed = Math.max(type.getDynamicLagMinSpeed(), speed);
-        return (int)Math.round((20.0 * (type.getCruiseSkipBlocks(w) + 1.0)) / speed);
+        return (int)Math.round((20.0 * (type.getCruiseSkipBlocks(w) + 1.0)) / speed) * (type.getGearShiftsAffectTickCooldown() ? currentGear : 1);
             //In theory, the chest penalty is not needed for a DynamicLag craft.
     }
 
@@ -364,7 +363,7 @@ public abstract class Craft {
      * @return the speed of the craft
      */
     public double getSpeed() {
-        if(cruiseDirection == 0x42 || cruiseDirection == 0x43) {
+        if(cruiseDirection == CruiseDirection.UP || cruiseDirection == CruiseDirection.DOWN) {
             return 20 * (type.getVertCruiseSkipBlocks(w) + 1) / (double) getTickCooldown();
         }
         else {
@@ -439,11 +438,6 @@ public abstract class Craft {
     }
 
     @NotNull
-    public Map<UUID, Location> getCrewSigns(){
-        return crewSigns;
-    }
-
-    @NotNull
     public String getName() {
         return name;
     }
@@ -474,5 +468,16 @@ public abstract class Craft {
 
     public void setLastTeleportTime(long lastTeleportTime) {
         this.lastTeleportTime = lastTeleportTime;
+    }
+
+    public int getCurrentGear() {
+        return currentGear;
+    }
+
+    public void setCurrentGear(int currentGear) {
+        if (currentGear > type.getGearShifts()) {
+            this.currentGear = type.getGearShifts();
+        }
+        this.currentGear = Math.max(currentGear, 1);
     }
 }
