@@ -19,7 +19,7 @@ allowedBlocks:
   - "#slabs"
   - bricks
   - bookshelf
-  - torch
+  - "#torches"
   - fire
   - "#stairs"
   - "#chests"
@@ -34,8 +34,7 @@ allowedBlocks:
   - ladder
   - lever
   - "#pressure_plates"
-  - redstone_torch
-  - redstone_wall_torch
+  - "#redstone_torches"
   - "#buttons"
   - clay
   - "#fences"

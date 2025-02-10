@@ -17,7 +17,7 @@ allowedBlocks:
     - gold_block
     - "#slabs"
     - bookshelf
-    - torch
+    - "#torches"
     - "#stairs"
     - "#chests"
     - redstone_wire
@@ -31,7 +31,7 @@ allowedBlocks:
     - "#signs"
     - lever
     - "#pressure_plates"
-    - redstone_torch
+    - "#redstone_torches"
     - "#buttons"
     - "#fences"
     - cake

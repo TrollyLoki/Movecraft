@@ -16,7 +16,7 @@ allowedBlocks:
     - gold_block
     - "#slabs"
     - bookshelf
-    - torch
+    - "#torches"
     - "#wooden_stairs"
     - nether_brick_stairs
     - "#chests"
