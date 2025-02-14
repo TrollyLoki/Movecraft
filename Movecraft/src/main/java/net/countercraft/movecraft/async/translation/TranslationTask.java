@@ -19,12 +19,14 @@ import net.countercraft.movecraft.events.CraftTeleportEntityEvent;
 import net.countercraft.movecraft.events.CraftTranslateEvent;
 import net.countercraft.movecraft.events.ItemHarvestEvent;
 import net.countercraft.movecraft.localisation.I18nSupport;
+import net.countercraft.movecraft.mapUpdater.update.AccessLocationUpdateCommand;
 import net.countercraft.movecraft.mapUpdater.update.BlockCreateCommand;
 import net.countercraft.movecraft.mapUpdater.update.CraftTranslateCommand;
 import net.countercraft.movecraft.mapUpdater.update.EntityUpdateCommand;
 import net.countercraft.movecraft.mapUpdater.update.ExplosionUpdateCommand;
 import net.countercraft.movecraft.mapUpdater.update.ItemDropUpdateCommand;
 import net.countercraft.movecraft.mapUpdater.update.UpdateCommand;
+import net.countercraft.movecraft.util.MathUtils;
 import net.countercraft.movecraft.util.Tags;
 import net.countercraft.movecraft.util.hitboxes.HitBox;
 import net.countercraft.movecraft.util.hitboxes.MutableHitBox;
@@ -44,8 +46,10 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.HumanEntity;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
@@ -369,6 +373,16 @@ public class TranslationTask extends AsyncTask {
                 EntityUpdateCommand eUp = new EntityUpdateCommand(entity, dx, dy, dz, 0, 0,
                         world, sound, volume);
                 updates.add(eUp);
+
+                InventoryView openInventory = ((HumanEntity) entity).getOpenInventory();
+                Location inventoryLocation = openInventory.getTopInventory().getLocation();
+                if (inventoryLocation == null || inventoryLocation.getWorld() != craft.getWorld()) continue;
+
+                MovecraftLocation accessLocation = MathUtils.bukkit2MovecraftLoc(inventoryLocation);
+                if (oldHitBox.contains(accessLocation)) {
+                    updates.add(new AccessLocationUpdateCommand(openInventory, world, accessLocation.translate(dx, dy, dz)));
+                }
+
                 continue;
             }
 

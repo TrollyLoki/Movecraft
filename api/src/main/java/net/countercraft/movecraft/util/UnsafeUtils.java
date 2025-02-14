@@ -39,10 +39,12 @@ public class UnsafeUtils {
         return getFieldOfType(type, clazz.getSuperclass());
     }
 
-    public static void trySetFieldOfType(@NotNull Class<?> type, @NotNull Object holder, @NotNull Object value) {
+    public static boolean trySetFieldOfType(@NotNull Class<?> type, @NotNull Object holder, @NotNull Object value) {
         Field field = getFieldOfType(type, holder.getClass());
         if (field != null) {
             setField(field, holder, value);
+            return true;
         }
+        return false;
     }
 }

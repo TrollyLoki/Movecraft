@@ -48,6 +48,7 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 public class Movecraft extends JavaPlugin {
@@ -57,6 +58,7 @@ public class Movecraft extends JavaPlugin {
     private boolean shuttingDown;
     private WorldHandler worldHandler;
     private SmoothTeleport smoothTeleport;
+    private AccessLocationUpdater accessLocationUpdater;
     private AsyncManager asyncManager;
     private WreckManager wreckManager;
 
@@ -114,23 +116,16 @@ public class Movecraft extends JavaPlugin {
                 worldHandler = (WorldHandler) worldHandlerClazz.getConstructor().newInstance(); // Set our handler
 
                 // Try to setup the smooth teleport handler
-                try {
-                    final Class<?> smoothTeleportClazz = Class.forName("net.countercraft.movecraft.support." + WorldHandler.getPackageName(minecraftVersion) + ".ISmoothTeleport");
-                    if (SmoothTeleport.class.isAssignableFrom(smoothTeleportClazz)) {
-                        smoothTeleport = (SmoothTeleport) smoothTeleportClazz.getConstructor().newInstance();
-                    }
-                    else {
-                        smoothTeleport = new BukkitTeleport(); // Fall back to bukkit teleportation
-                        getLogger().warning("Did not find smooth teleport, falling back to bukkit teleportation provider.");
-                    }
-                }
-                catch (final ReflectiveOperationException e) {
-                    if (Settings.Debug) {
-                        e.printStackTrace();
-                    }
-                    smoothTeleport = new BukkitTeleport(); // Fall back to bukkit teleportation
+                smoothTeleport = loadSupportClass(SmoothTeleport.class, () -> {
                     getLogger().warning("Falling back to bukkit teleportation provider.");
-                }
+                    return new BukkitTeleport(); // Fall back to bukkit teleportation
+                });
+
+                // Try to set up menu access location API
+                accessLocationUpdater = loadSupportClass(AccessLocationUpdater.class, () -> {
+                    getLogger().warning("Failed to load access location API! Players will not be able to use crafting tables or similar blocks on moving crafts.");
+                    return new AccessLocationUpdater.IDummy(); // Fall back to no-op implementation
+                });
             }
         }
         catch (final Exception e) {
@@ -252,6 +247,22 @@ public class Movecraft extends JavaPlugin {
         saveDefaultConfig();
     }
 
+    private <T> T loadSupportClass(Class<T> clazz, Supplier<T> fallback) {
+        String minecraftVersion = getServer().getMinecraftVersion();
+        try {
+            final Class<?> implementationClass = Class.forName("net.countercraft.movecraft.support." + WorldHandler.getPackageName(minecraftVersion) + ".I" + clazz.getSimpleName());
+            if (clazz.isAssignableFrom(implementationClass)) {
+                return clazz.cast(implementationClass.getConstructor().newInstance());
+            }
+        }
+        catch (final ReflectiveOperationException e) {
+            if (Settings.Debug) {
+                e.printStackTrace();
+            }
+        }
+        return fallback.get();
+    }
+
     private boolean initializeDatapack() {
         File datapackDirectory = null;
         for(var world : getServer().getWorlds()) {
@@ -331,6 +342,10 @@ public class Movecraft extends JavaPlugin {
 
     public SmoothTeleport getSmoothTeleport() {
         return smoothTeleport;
+    }
+
+    public AccessLocationUpdater getAccessLocationUpdater() {
+        return accessLocationUpdater;
     }
 
     public AsyncManager getAsyncManager() {
