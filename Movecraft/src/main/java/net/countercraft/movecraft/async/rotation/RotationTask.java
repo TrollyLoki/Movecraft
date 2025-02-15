@@ -31,10 +31,10 @@ import net.countercraft.movecraft.craft.type.CraftType;
 import net.countercraft.movecraft.events.CraftRotateEvent;
 import net.countercraft.movecraft.events.CraftTeleportEntityEvent;
 import net.countercraft.movecraft.localisation.I18nSupport;
-import net.countercraft.movecraft.mapUpdater.update.AccessLocationUpdateCommand;
 import net.countercraft.movecraft.mapUpdater.update.CraftRotateCommand;
 import net.countercraft.movecraft.mapUpdater.update.EntityUpdateCommand;
 import net.countercraft.movecraft.mapUpdater.update.UpdateCommand;
+import net.countercraft.movecraft.util.AccessLocationUtils;
 import net.countercraft.movecraft.util.MathUtils;
 import net.countercraft.movecraft.util.Tags;
 import net.countercraft.movecraft.util.hitboxes.MutableHitBox;
@@ -47,7 +47,6 @@ import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.HumanEntity;
-import org.bukkit.inventory.InventoryView;
 
 import java.util.HashSet;
 import java.util.List;
@@ -291,14 +290,8 @@ public class RotationTask extends AsyncTask {
             );
             updates.add(eUp);
 
-            InventoryView openInventory = ((HumanEntity) entity).getOpenInventory();
-            Location inventoryLocation = openInventory.getTopInventory().getLocation();
-            if (inventoryLocation == null || inventoryLocation.getWorld() != craft.getWorld()) continue;
-
-            MovecraftLocation accessLocation = MathUtils.bukkit2MovecraftLoc(inventoryLocation);
-            if (oldHitBox.contains(accessLocation)) {
-                updates.add(new AccessLocationUpdateCommand(openInventory, craft.getWorld(), MathUtils.rotateVec(rotation, accessLocation)));
-            }
+            AccessLocationUtils.createUpdateCommand((HumanEntity) entity, oldHitBox, craft.getWorld(), craft.getWorld(),
+                    l -> MathUtils.rotateVec(rotation, l)).ifPresent(updates::add);
         }
     }
 
